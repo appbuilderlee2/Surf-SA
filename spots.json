@@ -1,0 +1,151 @@
+[
+  {
+    "id": "port_noarlunga_south",
+    "name": "Port Noarlunga South",
+    "region": "Adelaide South (Port Noarlunga)",
+    "lat": -35.158,
+    "lon": 138.47,
+    "beachFacingDeg": 270,
+    "tidePref": "mid-high",
+    "notes": "新手沙灘浪（近岸），通常微風/Offshore 較乾淨（cam 用 Southport 近似參考）",
+    "beginner": true,
+    "camUrl": "https://www.swellnet.com/surfcams/south-port"
+  },
+  {
+    "id": "port_noarlunga_reef",
+    "name": "Port Noarlunga Reef",
+    "region": "Adelaide South (Port Noarlunga)",
+    "lat": -35.153,
+    "lon": 138.469,
+    "beachFacingDeg": 270,
+    "tidePref": "mid",
+    "notes": "Reef（進階）：留意礁石/流/落水位（cam 用 Southport 近似參考）",
+    "beginner": false,
+    "camUrl": "https://www.swellnet.com/surfcams/south-port"
+  },
+  {
+    "id": "southport",
+    "name": "Southport Beach",
+    "region": "Adelaide South (Port Noarlunga)",
+    "lat": -35.165,
+    "lon": 138.468,
+    "beachFacingDeg": 270,
+    "tidePref": "mid-high",
+    "notes": "新手沙灘浪；風大會好碎",
+    "beginner": true,
+    "camUrl": "https://www.swellnet.com/surfcams/south-port"
+  },
+  {
+    "id": "moana",
+    "name": "Moana",
+    "region": "Adelaide South (nearby)",
+    "lat": -35.205,
+    "lon": 138.478,
+    "beachFacingDeg": 270,
+    "beginner": true,
+    "camUrl": "https://open.ivideon.com/embed/v2/?server=200-zyQwyxhuBgR2nQfTTiWTn7&camera=0&width=&height=&lang=en"
+  },
+  {
+    "id": "seaford",
+    "name": "Seaford",
+    "region": "Adelaide South (nearby)",
+    "lat": -35.186,
+    "lon": 138.468,
+    "notes": "附近參考點（cam 用 Southport/Moana 參考）",
+    "beginner": true,
+    "camUrl": "https://open.ivideon.com/embed/v2/?server=200-zyQwyxhuBgR2nQfTTiWTn7&camera=0&width=&height=&lang=en"
+  },
+  {
+    "id": "christies",
+    "name": "Christies Beach",
+    "region": "Adelaide South (nearby)",
+    "lat": -35.139,
+    "lon": 138.47,
+    "notes": "附近參考點（cam 用 Southport 近似參考）",
+    "beginner": true,
+    "camUrl": "https://www.swellnet.com/surfcams/south-port"
+  },
+  {
+    "id": "brighton",
+    "name": "Brighton (backup cam)",
+    "region": "Adelaide Metro (backup)",
+    "lat": -35.019,
+    "lon": 138.517,
+    "beginner": true,
+    "camUrl": "https://www.windy.com/webcams/1612282870"
+  },
+
+  {
+    "id": "victor_harbor_granite",
+    "name": "Victor Harbor (Granite Island)",
+    "region": "Victor Harbor",
+    "lat": -35.566,
+    "lon": 138.62,
+    "beachFacingDeg": 210,
+    "tidePref": "mid",
+    "notes": "一般海況參考；以現場風向為準",
+    "beginner": true,
+    "camUrl": "https://www.windy.com/webcams/1442384181"
+  },
+  {
+    "id": "victor_harbor_encounter",
+    "name": "Victor Harbor (Encounter Bay)",
+    "region": "Victor Harbor",
+    "lat": -35.565,
+    "lon": 138.636,
+    "beachFacingDeg": 240,
+    "tidePref": "mid",
+    "notes": "灣內較易；仍留意風同流",
+    "beginner": true,
+    "camUrl": ""
+  },
+  {
+    "id": "port_elliot_chiton",
+    "name": "Port Elliot (Chiton Rocks)",
+    "region": "Victor Harbor",
+    "lat": -35.53,
+    "lon": 138.68,
+    "beachFacingDeg": 220,
+    "tidePref": "mid",
+    "notes": "Reef/石區，較進階（留意落水位/流）",
+    "beginner": false,
+    "camUrl": "https://www.windy.com/webcams/1293414769"
+  },
+  {
+    "id": "middleton",
+    "name": "Middleton",
+    "region": "Fleurieu / South Coast",
+    "lat": -35.512,
+    "lon": 138.704,
+    "beachFacingDeg": 200,
+    "tidePref": "mid",
+    "notes": "真浪點（南岸）；長周期 sets 注意",
+    "beginner": false,
+    "camUrl": "https://www.surf-forecast.com/breaks/Middleton-Beach/webcams/latest"
+  },
+  {
+    "id": "middleton_point",
+    "name": "Middleton Point",
+    "region": "Fleurieu / South Coast",
+    "lat": -35.509,
+    "lon": 138.705,
+    "beachFacingDeg": 200,
+    "tidePref": "mid",
+    "notes": "真浪點；風向好重要",
+    "beginner": false,
+    "camUrl": "https://www.swellnet.com/surfcams/middleton-point"
+  },
+  {
+    "id": "waitpinga",
+    "name": "Waitpinga",
+    "region": "Fleurieu / South Coast",
+    "lat": -35.608,
+    "lon": 138.516,
+    "beachFacingDeg": 200,
+    "tidePref": "mid",
+    "notes": "真浪點（較重）；新手慎入",
+    "beginner": false,
+    "camUrl": "https://www.swellnet.com/surfcams/waitpinga"
+  }
+]
+

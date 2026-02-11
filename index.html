@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>SA Surf（南澳浪況）</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>SA Surf</h1>
+      <div class="sub">南澳浪況（新手一眼明）</div>
+    </div>
+    <button id="btnRefresh" class="btn">刷新</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="row">
+        <label>地點</label>
+        <select id="spotSelect"></select>
+      </div>
+
+      <div style="margin:10px 0 6px">
+        <div class="tiny" style="margin-bottom:8px">地圖（浪點）— 點 marker 可切換浪點</div>
+        <div id="map" style="height:260px;border-radius:12px;overflow:hidden"></div>
+      </div>
+
+      <div class="row">
+        <label>顯示</label>
+        <div class="seg">
+          <button class="segBtn" data-mode="now">而家</button>
+          <button class="segBtn" data-mode="today">今日</button>
+          <button class="segBtn" data-mode="next10">未來 10 日</button>
+          <button class="segBtn" data-mode="compare">比較</button>
+        </div>
+      </div>
+
+      <div class="row" id="dayRow" hidden>
+        <label>日期</label>
+        <select id="daySelect"></select>
+      </div>
+      <div class="tiny" id="updatedAt"></div>
+    </section>
+
+    <section class="card" id="summaryCard">
+      <div class="h2row">
+        <h2>結論（Go / Maybe / No‑Go）</h2>
+        <label class="toggle"><input type="checkbox" id="toggleBeginner" checked> 新手模式</label>
+      </div>
+      <div id="summary"></div>
+      <div class="pillRow" id="pills"></div>
+      <details class="details">
+        <summary>點解係咁？（術語解釋 / Safety）</summary>
+        <div class="tiny" style="margin-top:8px" id="learnBox"></div>
+      </details>
+      <div class="tiny" id="disclaimer">只作參考：最終以現場風/流/地形/救生員/警告為準。</div>
+    </section>
+
+    <section class="card" id="chartCard">
+      <h2 id="chartTitle">時間表</h2>
+      <div class="tableWrap">
+        <table id="table" class="table"></table>
+      </div>
+    </section>
+
+
+    <section class="card" id="compareCard" hidden>
+      <h2>附近浪點比較（Go/Maybe/No）</h2>
+      <div class="tiny" style="margin-bottom:8px">同一時間（而家）比較附近幾個點，方便揀去邊個。</div>
+      <div class="tableWrap">
+        <table id="compareTable" class="table"></table>
+      </div>
+    </section>
+
+    <section class="card" id="camCard" hidden>
+      <h2>海灘 Cam</h2>
+      <div id="camWrap"></div>
+      <div class="tiny">提示：免費 cam 來源通常分散；如你提供可公開/可嵌入 link，我可以逐個 spot 加入。</div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="tiny">資料：Open‑Meteo（免 key）。時區：Australia/Adelaide。Build: 2026-02-07-1150</div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="./app.js?v=2026-02-07-1150"></script>
+</body>
+</html>
