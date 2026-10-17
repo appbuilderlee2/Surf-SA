@@ -7,7 +7,7 @@
     "lon": 138.47,
     "beachFacingDeg": 270,
     "tidePref": "mid-high",
-    "notes": "新手沙灘浪（近岸），通常微風/Offshore 較乾淨（cam 用 Southport 近似參考）",
+    "notes": "新手沙灘浪（近岸），通常微風/離岸風 Offshore 較乾淨（cam 用 Southport 近似參考）",
     "beginner": true,
     "camUrl": "https://www.swellnet.com/surfcams/south-port"
   },
@@ -19,7 +19,7 @@
     "lon": 138.469,
     "beachFacingDeg": 270,
     "tidePref": "mid",
-    "notes": "Reef（進階）：留意礁石/流/落水位（cam 用 Southport 近似參考）",
+    "notes": "礁石浪 Reef（進階）：留意礁石/流/落水位（cam 用 Southport 近似參考）",
     "beginner": false,
     "camUrl": "https://www.swellnet.com/surfcams/south-port"
   },
@@ -107,7 +107,7 @@
     "lon": 138.68,
     "beachFacingDeg": 220,
     "tidePref": "mid",
-    "notes": "Reef/石區，較進階（留意落水位/流）",
+    "notes": "礁石浪 Reef/石區，較進階（留意落水位/流）",
     "beginner": false,
     "camUrl": "https://www.windy.com/webcams/1293414769"
   },
@@ -119,7 +119,7 @@
     "lon": 138.704,
     "beachFacingDeg": 200,
     "tidePref": "mid",
-    "notes": "真浪點（南岸）；長周期 sets 注意",
+    "notes": "真浪點（南岸）；長周期 浪組 sets 注意",
     "beginner": false,
     "camUrl": "https://www.surf-forecast.com/breaks/Middleton-Beach/webcams/latest"
   },

@@ -1,70 +1,8 @@
-const CACHE = 'sa-surf-v17';
-const ASSETS = [
-  './',
-  './index.html',
-  './styles.css',
-  './app.js',
-  './spots.json',
-  './tides_bom.json',
-  './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-];
-
-self.addEventListener('install', (e) => {
-  e.waitUntil((async () => {
-    const c = await caches.open(CACHE);
-    await c.addAll(ASSETS);
-    self.skipWaiting();
-  })());
-});
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
-    self.clients.claim();
-  })());
-});
-
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-
-  // Network-first for API calls
-  if (url.hostname.endsWith('open-meteo.com')) {
-    e.respondWith((async () => {
-      try {
-        const res = await fetch(e.request);
-        return res;
-      } catch {
-        const cached = await caches.match(e.request);
-        return cached || Response.error();
-      }
-    })());
-    return;
-  }
-
-  // Network-first for HTML navigations (avoid sticky old UI on iOS)
-  const accept = e.request.headers.get('accept') || '';
-  if (e.request.mode === 'navigate' || accept.includes('text/html')) {
-    e.respondWith((async () => {
-      try {
-        const res = await fetch(e.request);
-        // Update cache with latest shell
-        const c = await caches.open(CACHE);
-        c.put(e.request, res.clone()).catch(()=>{});
-        return res;
-      } catch {
-        const cached = await caches.match(e.request);
-        return cached || Response.error();
-      }
-    })());
-    return;
-  }
-
-  // Cache-first for local static assets
-  e.respondWith((async () => {
-    const cached = await caches.match(e.request);
-    return cached || fetch(e.request);
-  })());
+const CACHE='sa-surf-v2.0.0';
+const ASSETS=['./','./index.html','./styles.css?v=2.0.0','./app.js?v=2.0.0','./spots.json','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png','./assets/ocean.webp'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil((async()=>{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('sa-surf-')&&k!==CACHE).map(k=>caches.delete(k)));await self.clients.claim();})()));
+self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin)return;
+ if(event.request.mode==='navigate'){event.respondWith((async()=>{try{const r=await fetch(event.request);if(!r.ok)throw Error('HTTP');return r;}catch{return(await caches.open(CACHE)).match('./index.html');}})());return;}
+ event.respondWith((async()=>{const c=await caches.open(CACHE);return await c.match(event.request)||fetch(event.request);})());
 });

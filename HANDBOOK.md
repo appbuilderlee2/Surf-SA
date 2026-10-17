@@ -12,7 +12,7 @@
 - `manifest.webmanifest`：PWA manifest
 - `icons/`：PWA icons
 - `spots.json`：surf spots（lat/lon + 可選 camUrl）
-- `tides_bom.json`：BoM 潮汐（離線 JSON）
+- `tides_bom.json`：舊潮汐解析資料（已停用，勿作實際判斷）
 
 ## 本地開發/預覽
 用任何靜態 server：
@@ -35,4 +35,4 @@ python3 -m http.server 8088
 
 ## 備註
 - Service Worker 只會喺 HTTPS/localhost 生效；GitHub Pages 係 HTTPS。
-- iOS Safari 可能需要重新安裝/刷新先更新 SW（已用 `sw.js?v=...` cache-bust 方式）。
+- iOS Safari 可能需要重新安裝/刷新先更新 SW（v2 使用版本化資產、專用快取及 controllerchange 更新）。
