@@ -8,3 +8,5 @@
 .hero p{display:inline-block;background:#e0f4f5ed;padding:5px 8px;border-radius:6px;margin-bottom:0}
 
 .local-form{display:grid;gap:14px;margin-top:16px}.local-form label{font-size:13px;display:grid;gap:6px}.local-form select,.local-form input{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--ink)}
+
+.decision-label{font-size:13px;font-weight:700;margin-top:14px}.hero h1{font-size:27px}.entry-title{display:inline-block;font-size:20px;padding:5px 9px;border-radius:8px;line-height:1.4}.entry-decision .status-en{font-size:12px;margin:6px 0;color:var(--muted)}.entry-decision p{font-size:14px}.entry-decision h2{margin-bottom:12px}#localConditions{scroll-margin-top:16px}

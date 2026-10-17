@@ -64,12 +64,12 @@ function tideTrend(rows,row){
 function assessmentPanel(data,spot,row){
  const o=observation(spot,row),past=read('observation:'+spot.id,null),nowHour=row?.time.slice(0,13)===localTime().slice(0,13);
  const option=(value,text,key)=>`<option value="${value}" ${o?.[key]===value?'selected':''}>${text}</option>`;
- return `<section class="panel"><h2>現場因素 <small>Local conditions</small></h2>
+ return `<section class="panel" id="localConditions"><h2>現場因素 <small>Local conditions</small></h2>
  <p class="caption">風浪模型：${modelVerdict(row,spot).zh} · ${modelVerdict(row,spot).en}。綜合結論另計現場因素。</p><div class="detail-grid"><div>模型海平面<small>Sea level · MSL</small><b>${num(row?.sea_level_height_msl,2)} m</b></div><div>海平面趨勢<small>Model trend</small><b>${tideTrend(data.rows,row)}</b></div></div>
  <p class="caption">包含潮汐及其他海平面變化，基準係平均海平面 MSL，唔係官方潮汐表嘅海圖基準。約 8 km 模型；唔用數值直接推算沙灘離岸流或安全潮位。</p>
  <div class="detail-grid"><div>潮汐／進出水位<small>Tide & access</small><b>${o?.tide==='checked'?'已核對 Checked':o?.tide==='adverse'?'不利 Adverse':'未確認 Unknown'}</b></div><div>離岸流<small>Rip current</small><b>${o?.rip==='present'?'已見／獲警告 Present':o?.rip==='notseen'?'未見跡象 Not observed':'未確認 Unknown'}</b></div><div>現場破浪<small>Observed breaking height</small><b>${num(o?.breaking)} m</b></div><div>救生員警告<small>Lifeguard warnings</small><b>${o?.warning==='danger'?'禁止入水 Do not enter':o?.warning==='checked'?'已詢問 Checked':'未確認 Unknown'}</b></div></div><p class="caption">${o?'你的現場記錄 Your observation · '+localTime(new Date(o.at)).replace('T',' '):past?'上次記錄已過期或不適用所選時段 · Recheck required':'未確認現場 · No local observations'}。記錄只適用此浪點目前小時，30 分鐘後失效。</p>
  <div class="links"><a class="btn" href="${tideLink(spot)}" target="_blank" rel="noopener noreferrer">官方潮汐 Tide table</a><a class="btn" href="https://beachsafe.org.au/" target="_blank" rel="noopener noreferrer">巡邏／警告 Beachsafe</a></div>
- <details><summary>點樣計算？ · Assessment rules</summary><p class="caption">新手風浪條件：浪高 0.3–1.0 m、週期 ≤11 s、風 ≤約22 km/h（向岸風 ≤約17）。浪高 >1.5 m、週期 >13 s 或風 >約33 km/h（向岸風 >約28）列為較高風險。一般模式門檻較寬。現場警告／離岸流優先；未知因素保留為需觀察。這是 App 篩選規則，並非經驗證的安全評估。</p></details><p class="caption">未接入即時離岸流、破浪或封灘資料。以下由你按現場／救生員資訊填寫；「未見」唔代表不存在。</p>
+ <details><summary>點樣計算？ · Assessment rules</summary><p class="caption">新手風浪條件：浪高 0.3–1.0 m、週期 ≤11 s、風 ≤約22 km/h（向岸風 ≤約17）。浪高 >1.5 m、週期 >13 s 或風 >約33 km/h（向岸風 >約28）列為較高風險。一般模式門檻較寬。現場警告／離岸流優先；出發建議按未過時嘅日照風浪模型篩選；落水判斷另需現場資料，未確認就顯示「暫不能判斷能否落水」。這是 App 篩選規則，並非經驗證的安全評估。</p></details><p class="caption">未接入即時離岸流、破浪或封灘資料。以下由你按現場／救生員資訊填寫；「未見」唔代表不存在。</p>
  ${nowHour&&!data.stale?`<details><summary>更新現場記錄 · Record observations</summary><form id="localForm" class="local-form">
  <label>潮汐／進出水位 Tide & access<select name="tide">${option('unknown','未確認 Unknown','tide')}${option('checked','已核對潮表及進出水位 Checked','tide')}${option('adverse','潮位不利／通道受阻 Adverse','tide')}</select></label>
  <label>離岸流 Rip current<select name="rip">${option('unknown','未確認 Unknown','rip')}${option('notseen','未見明顯跡象 Not observed','rip')}${option('present','已見／獲警告離岸流 Present','rip')}</select></label>
@@ -121,22 +121,49 @@ function bestWindow(rows,spot) {
 }
 function metric(name,en,value,unit,hint,ico){return `<div class="metric">${icon(ico)}<div><div class="name">${name}<small>${en}</small></div><strong>${value} <span>${unit}</span></strong><div class="caption">${hint}</div></div></div>`;}
 function tideLink(spot){const south=/victor|fleurieu|south coast/i.test(spot.region);return `https://www.bom.gov.au/ntc/IDO59001/IDO59001_${localTime().slice(0,4)}_SA_${south?'TP006':'TP001'}.pdf`;}
+function tripDecision(rows,spot,stale=false){
+ const known=rows.map(r=>observation(spot,r)).find(Boolean);
+ if(known&&(known.warning==='danger'||known.rip==='present'||known.tide==='adverse'||known.breaking>(state.beginner?1.5:2.2)))return {level:'bad',zh:'唔建議為滑浪出發',en:'Skip the surf trip',reason:'已有現場危險或不利潮位記錄，先等情況更新。',best:null};
+ if(stale)return {level:'meh',zh:'資料不足，暫難判斷',en:'Fresh forecast needed',reason:'目前係舊資料，請連線更新後再決定。',best:null};
+ if(state.beginner&&spot.beginner===false)return {level:'bad',zh:'唔建議為滑浪出發',en:'Not suitable for beginners',reason:'此浪點屬進階，唔適合目前選用嘅新手模式。',best:null};
+ const future=rows.filter(r=>r.time>=localTime().slice(0,13)+':00');
+ if(!future.length||future.some(r=>r.is_day==null))return {level:'meh',zh:'資料不足，暫難判斷',en:'Forecast incomplete',reason:'未有足夠時段或日照預報，請更新資料或選其他日期。',best:null};
+ const daylight=future.filter(r=>r.is_day===1);
+ if(!daylight.length)return {level:'meh',zh:'未必值得專程去',en:'No daylight window',reason:'所選日期未有剩餘日照時段可供推薦，可查看其他日期。',best:null};
+ const valid=daylight.filter(r=>[r.wave_height,r.wave_period,r.wind_speed_10m].every(Number.isFinite));
+ if(valid.length!==daylight.length)return {level:'meh',zh:'資料不足，暫難判斷',en:'Forecast incomplete',reason:'部分日照時段缺少浪高、週期或風力預報。',best:null};
+ const best=bestWindow(daylight,spot);
+ if(best)return {level:'ok',zh:'值得考慮出發',en:'Worth considering',reason:`預報 ${best.a.time.slice(11)}–${best.b.time.slice(11)} 浪高 ${num(Math.min(best.a.wave_height,best.b.wave_height))}–${num(Math.max(best.a.wave_height,best.b.wave_height))} m、風力不高於 ${num(best.wind,0)} km/h，符合所選程度嘅較溫和門檻。出發仍需預留車程。`,best};
+ if(valid.every(r=>modelVerdict(r,spot).level==='bad'))return {level:'bad',zh:'唔建議為滑浪出發',en:'Skip the surf trip',reason:'剩餘日照時段嘅浪高、週期或風力均超出所選程度門檻。',best:null};
+ const flat=valid.every(r=>r.wave_height<(state.beginner?.3:.4));
+ return {level:'meh',zh:'未必值得專程去',en:'May not be worth the trip',reason:flat?'預報浪太細，可能唔夠浪練習；住附近可以先睇 Cam。':'未有連續兩個整點同時符合較溫和條件；可能風較強、浪唔理想或時段太短。',best:null};
+}
+function entryDecision(row,spot,stale=false){
+ const v=verdict(row,spot),o=observation(spot,row);
+ if(v.level==='bad')return {...v,zh:'不要落水',en:'Do not enter'};
+ if(stale)return {level:'meh',zh:'暫不能判斷能否落水',en:'Cannot assess entry yet',reason:'預報已過時，請更新資料及重新確認現場。'};
+ if(!row||row.time.slice(0,13)!==localTime().slice(0,13))return {level:'meh',zh:'到場後先確認',en:'Check on arrival',reason:'未來預報唔能夠確認當時嘅離岸流、破浪或救生員警告。'};
+ if(row.is_day!==1)return {level:'meh',zh:'暫不建議落水',en:'No daylight confirmation',reason:'目前屬夜間或缺少日照資料，不能確認可見度及現場條件。'};
+ if(!o||o.tide==='unknown'||o.rip==='unknown'||o.warning==='unknown'||!Number.isFinite(o.breaking))return {level:'meh',zh:'暫不能判斷能否落水',en:'Cannot assess entry yet',reason:'仍需確認潮位、離岸流、實際破浪及救生員指示。未確認唔等於危險，亦唔等於安全。'};
+ if(v.level==='ok')return {level:'ok',zh:'可考慮落水，依現場指示',en:'Consider entry; follow local advice',reason:'預報及你最近嘅現場記錄未觸發本模式門檻。這不是安全保證；情況有變應停止並重新確認。'};
+ return {level:'meh',zh:'先留岸觀察／問救生員',en:'Wait and ask a lifeguard',reason:v.reason};
+}
 function renderForecast(data,spot) {
  const days=[...new Set(data.rows.map(r=>r.time.slice(0,10)))],today=localTime().slice(0,10);
  if(!days.includes(state.day))state.day=days.includes(today)?today:days[0];
  $('daySelect').innerHTML=days.map(d=>`<option ${d===state.day?'selected':''}>${d}</option>`).join('');
  const day=state.mode==='today'?today:state.day,dayRows=data.rows.filter(r=>r.time.startsWith(day));
  const row=day===today?current(dayRows):dayRows.find(r=>r.time.endsWith('T12:00'))||dayRows[0],v=verdict(row,spot),r=row||{};
- const currentAssessment=verdict(current(data.rows),spot);
- const best=data.stale||currentAssessment.level==='bad'||observation(spot,current(data.rows))?.tide==='adverse'?null:bestWindow(dayRows,spot);
+ const trip=tripDecision(dayRows,spot,data.stale),entry=entryDecision(row,spot,data.stale),best=trip.best;
  const hourly=day===today?dayRows.filter(r=>r.time>=localTime().slice(0,13)+':00'):dayRows;
- const rowHtml=x=>{const v=verdict(x,spot);return `<div class="hour-row"><b>${x.time.slice(11)}<small>${x.is_day===0?'夜間 Night':''}</small></b><span>${icon('wave')}${num(x.wave_height)} m</span><span>${icon('wind')}${num(x.wind_speed_10m,0)}<small>km/h</small></span><span class="tag ${v.level}">${v.level==='ok'?'較溫和 Milder':v.level==='bad'?'較高風險 Caution':'需觀察 Check'}</span></div>`;};
+ const rowHtml=x=>{const v=modelVerdict(x,spot);return `<div class="hour-row"><b>${x.time.slice(11)}<small>${x.is_day===0?'夜間 Night':''}</small></b><span>${icon('wave')}${num(x.wave_height)} m</span><span>${icon('wind')}${num(x.wind_speed_10m,0)}<small>km/h</small></span><span class="tag ${v.level}">${v.level==='ok'?'較溫和 Milder':v.level==='bad'?'較高風險 Caution':'未達理想 Fair'}</span></div>`;};
  $('forecastContent').innerHTML=`
- <section class="hero"><div class="hero-top"><span class="caption">${esc(day)} · ${r.time?esc(r.time.slice(11)):'無資料'} ${day===today?'目前 Current':'預報 Forecast'}</span><span class="tag">${state.beginner?'新手模式 Beginner':'一般模式 Standard'}</span></div><h1>${v.zh}</h1><div class="status-en">${v.en}</div><p>${v.reason}</p></section>
- <section class="panel best">${icon('sun')}<div><div>模型候選時段 <small>Potential window</small></div><strong>${best?`${best.a.time.slice(11)}–${best.b.time.slice(11)}`:'暫未有合適時段'}</strong><div class="caption">${best?'僅風浪模型較溫和；現場因素未確認 · Local checks required':data.stale?'舊資料不提供時段推薦 · Cached forecast':'只比較未過時嘅日照時段 · Daylight only'}</div></div></section>
+ <section class="hero"><div class="hero-top"><span class="caption">${esc(day)} · ${r.time?esc(r.time.slice(11)):'無資料'} ${day===today?'目前 Current':'預報 Forecast'}</span><span class="tag">${state.beginner?'新手模式 Beginner':'一般模式 Standard'}</span></div><div class="decision-label">值唔值得出發？ · Surf trip</div><h1>${trip.zh}</h1><div class="status-en">${trip.en}</div><p>${trip.reason}</p></section>
+ <section class="panel entry-decision"><h2>現場可唔可以落水？ <small>Water entry</small></h2><strong class="entry-title ${entry.level}">${entry.zh}</strong><div class="status-en">${entry.en}</div><p>${entry.reason}</p><a class="btn" href="#localConditions">確認現場因素 · Local checks</a></section>
+ <section class="panel best">${icon('sun')}<div><div>模型候選時段 <small>Potential window</small></div><strong>${best?`${best.a.time.slice(11)}–${best.b.time.slice(11)}`:'暫未有合適時段'}</strong><div class="caption">${best?'僅風浪模型較溫和；落水另看現場判斷 · Check water-entry advice':data.stale?'舊資料不提供時段推薦 · Cached forecast':'只比較未過時嘅日照時段 · Daylight only'}</div></div></section>
  <section class="metrics">${metric('浪高','Wave height',num(r.wave_height),'m','模型有效波高 · Model waves','wave')}${metric('風力','Wind speed',num(r.wind_speed_10m,0),'km/h',relation(r.wind_direction_10m,spot.beachFacingDeg),'wind')}${metric('浪週期','Wave period',num(r.wave_period,0),'秒 s',r.wave_period>=12?'長週期 · Long period':'兩個浪峰間距 · Wave interval','wave')}${metric('水溫','Water temperature',num(r.sea_surface_temperature,0),'°C',Number.isFinite(r.sea_surface_temperature)?'留意保暖 · Wetsuit advised':'暫無水溫資料 · Unavailable','temp')}</section>
  ${assessmentPanel(data,spot,row)}
- <section class="panel hours"><h2>逐小時浪況 <small>Hourly forecast</small></h2>${hourly.length?hourly.slice(0,4).map(rowHtml).join(''):'今日未有可顯示時段'}${hourly.length>4?`<details><summary>展開其餘 ${hourly.length-4} 小時 · More hours</summary>${hourly.slice(4).map(rowHtml).join('')}</details>`:''}</section>
+ <section class="panel hours"><h2>逐小時風浪模型 <small>Hourly model</small></h2>${hourly.length?hourly.slice(0,4).map(rowHtml).join(''):'今日未有可顯示時段'}${hourly.length>4?`<details><summary>展開其餘 ${hourly.length-4} 小時 · More hours</summary>${hourly.slice(4).map(rowHtml).join('')}</details>`:''}</section>
  <details class="panel"><summary>更多天氣資料 · Weather details</summary><div class="detail-grid">${[['氣溫','Air temperature',r.temperature_2m,'°C'],['體感溫度','Feels like',r.apparent_temperature,'°C'],['湧浪','Swell height',r.swell_wave_height,'m'],['風浪','Wind wave height',r.wind_wave_height,'m'],['湧浪週期','Swell period',r.swell_wave_period,'s'],['湧浪方向','Swell direction',r.swell_wave_direction,'°'],['浪向','Wave direction',r.wave_direction,'°'],['風向','Wind direction',r.wind_direction_10m,'°']].map(([zh,en,val,u])=>`<div>${zh}<small>${en}</small><b>${num(val,u==='m'?1:0)} ${u}</b></div>`).join('')}</div></details>
  <section class="panel"><h2>出發前確認 <small>Before you go</small></h2><p class="caption">${esc(spot.notes||'留意當地風浪、水流及救生員指示。')}</p><div class="links"><a class="btn" href="${tideLink(spot)}" target="_blank" rel="noopener noreferrer">潮汐表 Tide · BoM</a><a class="btn" href="https://auswaves.org/sa-waves/" target="_blank" rel="noopener noreferrer">實測 Observations</a></div>${spot.camUrl?`<a class="btn cam" href="${esc(spot.camUrl)}" target="_blank" rel="noopener noreferrer">${icon('camera')}查看海灘 Cam · Webcam</a>`:'<p class="caption">此浪點未有 Cam · No webcam available</p>'}</section><p class="disclaimer">模型預報，落水前確認現場 · Check local conditions</p>`;
  $('updatedAt').textContent=`${data.stale?'離線／舊資料 Cached':'已更新 Updated'} · ${localTime(new Date(data.at)).replace('T',' ')} · 南澳`;
@@ -154,8 +181,8 @@ function distance(a,b){const r=Math.PI/180,x=(b.lon-a.lon)*r*Math.cos((a.lat+b.l
 function visibleSpots(){let spots=state.spots;if(state.view==='favorites')spots=spots.filter(s=>state.favorites.includes(s.id));if(state.filter==='beginner')spots=spots.filter(s=>s.beginner);if(state.filter==='nearby'){const selected=state.spots.find(s=>s.id===state.spot);spots=[...spots].sort((a,b)=>distance(a,selected)-distance(b,selected)).filter(s=>distance(s,selected)<=35);}return spots;}
 function renderSpotCards(){
  const spots=visibleSpots();
- $('spotCards').innerHTML=spots.length?spots.map(s=>{const data=memory.get(s.id),row=data?current(data.rows):null,v=row?verdict(row,s):null;
- return `<article class="spot-card"><div class="spot-symbol">${icon('wave')}</div><div class="spot-copy"><h2>${esc(s.name)}</h2><span class="tag ${s.beginner?'':'meh'}">${s.beginner?'新手參考 Beginner':'進階浪點 Experienced'}</span><p>${data?.failed?'暫未有資料 Unavailable':data?`${num(row?.wave_height)} m · ${num(row?.wind_speed_10m,0)} km/h${data.stale?' · 舊資料 Cached':''}`:'預報載入中 Loading…'}</p>${v?`<span class="tag ${v.level}">${v.zh} · ${v.en}</span>`:''}<p class="caption">${esc(s.notes||s.region)}</p><div class="spot-actions"><button class="btn" data-spot="${s.id}">睇詳情 Details</button><button class="icon-btn" data-save="${s.id}" aria-label="收藏 ${esc(s.name)}" aria-pressed="${state.favorites.includes(s.id)}">${icon('heart')}</button></div></div></article>`;
+ $('spotCards').innerHTML=spots.length?spots.map(s=>{const data=memory.get(s.id),row=data?current(data.rows):null,v=data&&!data.failed?tripDecision(data.rows.filter(r=>r.time.startsWith(localTime().slice(0,10))),s,data.stale):null;
+ return `<article class="spot-card"><div class="spot-symbol">${icon('wave')}</div><div class="spot-copy"><h2>${esc(s.name)}</h2><span class="tag ${s.beginner?'':'meh'}">${s.beginner?'新手參考 Beginner':'進階浪點 Experienced'}</span><p>${data?.failed?'暫未有資料 Unavailable':data?`${num(row?.wave_height)} m · ${num(row?.wind_speed_10m,0)} km/h${data.stale?' · 舊資料 Cached':''}`:'預報載入中 Loading…'}</p>${v?`<span class="tag ${v.level}">出發：${v.zh}<br>${v.en}</span>`:''}<p class="caption">${esc(s.notes||s.region)}</p><div class="spot-actions"><button class="btn" data-spot="${s.id}">睇詳情 Details</button><button class="icon-btn" data-save="${s.id}" aria-label="收藏 ${esc(s.name)}" aria-pressed="${state.favorites.includes(s.id)}">${icon('heart')}</button></div></div></article>`;
  }).join(''):'<div class="empty">未有符合條件嘅浪點<br><small>可切換篩選，或點擊心形加入收藏。</small></div>';
  $('spotCards').querySelectorAll('[data-spot]').forEach(b=>b.onclick=()=>{state.spot=b.dataset.spot;write('spot',state.spot);$('spotSelect').value=state.spot;switchView('forecast');});
  $('spotCards').querySelectorAll('[data-save]').forEach(b=>b.onclick=()=>{toggleFavorite(b.dataset.save);renderSpotCards();});
