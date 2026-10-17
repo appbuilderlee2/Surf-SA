@@ -30,7 +30,7 @@ function relation(dir,facing) {
  const diff=Math.abs(((dir-facing+540)%360)-180);
  return diff<=50?'向岸風 Onshore':diff>=130?'離岸風 Offshore':'側風 Cross-shore';
 }
-function verdict(row,spot) {
+function modelVerdict(row,spot) {
  if(state.beginner && spot.beginner===false) return {level:'bad',zh:'不建議新手',en:'Experienced surfers',reason:'此浪點屬進階或需留意礁石、水流，浪細亦唔代表適合新手。'};
  if(!row || ![row.wave_height,row.wave_period,row.wind_speed_10m].every(Number.isFinite)) return {level:'meh',zh:'資料不足',en:'Data unavailable',reason:'未有完整預報，請查看海灘 Cam 及現場情況。'};
  const h=row.wave_height,p=row.wave_period,w=row.wind_speed_10m*0.539957;
@@ -38,6 +38,50 @@ function verdict(row,spot) {
  if(h>(state.beginner?1.5:2.2) || p>(state.beginner?13:15) || w>(state.beginner?(on?15:18):24)) return {level:'bad',zh:'浪況較強',en:'Challenging conditions',reason:'浪高、週期或風力偏強，落水風險較高。'};
  if(h>=(state.beginner?.3:.4) && h<=(state.beginner?1:1.5) && p<=(state.beginner?11:13) && w<=(state.beginner?(on?9:12):18)) return {level:'ok',zh:'浪況較溫和',en:'Milder conditions',reason:'模型顯示浪較細、風較弱，可先觀察現場。'};
  return {level:'meh',zh:'先觀察浪況',en:'Check conditions',reason:h<.3?'浪可能太細，未必適合滑浪練習。':'條件未算理想，先睇海灘 Cam 再決定。'};
+}
+// Local observations are user-entered, spot-specific, expire after 30 minutes,
+// and never apply to another forecast hour or day. No automated rip detection.
+function observation(spot,row){
+ const o=read('observation:'+spot.id,null),age=o?Date.now()-o.at:Infinity;
+ if(!o||age<0||age>30*60e3||!row||row.time.slice(0,13)!==localTime().slice(0,13))return null;
+ return o;
+}
+function verdict(row,spot){
+ const base=modelVerdict(row,spot),o=observation(spot,row);
+ const danger=o&&(o.warning==='danger'||o.rip==='present'||(Number.isFinite(o.breaking)&&o.breaking>(state.beginner?1.5:2.2)));
+ if(danger)return {level:'bad',zh:'不建議落水',en:'Do not enter',reason:'你記錄咗封灘／危險警告、離岸流，或超出本模式門檻嘅實際破浪。現場警告優先於模型。'};
+ if(base.level==='bad')return base;
+ if(o?.tide==='adverse')return {level:'meh',zh:'潮位不利',en:'Adverse tide / access',reason:'你記錄咗不利潮位或進出水位受阻，唔提供較佳時段建議。'};
+ if(!o||o.warning!=='checked'||o.rip!=='notseen'||o.tide!=='checked'||!Number.isFinite(o.breaking))return {level:'meh',zh:'現場資料未齊',en:'Local checks needed',reason:'潮汐、離岸流、實際破浪或救生員警告仍未確認。模型較溫和亦唔代表現場安全。'};
+ if(o.tide==='adverse'||o.breaking>(state.beginner?1:1.5))return {level:'meh',zh:'先觀察現場',en:'Check local conditions',reason:'現場潮位或破浪未符合本模式嘅較溫和條件。'};
+ return {...base,reason:base.reason+' 現場記錄只代表你當時嘅觀察，並非安全認證。'};
+}
+function tideTrend(rows,row){
+ const i=rows.indexOf(row),a=row?.sea_level_height_msl,b=rows[i+1]?.sea_level_height_msl;
+ if(!Number.isFinite(a)||!Number.isFinite(b))return '趨勢未詳 Unknown';
+ return b-a>.02?'上升 Rising':b-a<-.02?'下降 Falling':'變化不大 Steady';
+}
+function assessmentPanel(data,spot,row){
+ const o=observation(spot,row),past=read('observation:'+spot.id,null),nowHour=row?.time.slice(0,13)===localTime().slice(0,13);
+ const option=(value,text,key)=>`<option value="${value}" ${o?.[key]===value?'selected':''}>${text}</option>`;
+ return `<section class="panel"><h2>現場因素 <small>Local conditions</small></h2>
+ <p class="caption">風浪模型：${modelVerdict(row,spot).zh} · ${modelVerdict(row,spot).en}。綜合結論另計現場因素。</p><div class="detail-grid"><div>模型海平面<small>Sea level · MSL</small><b>${num(row?.sea_level_height_msl,2)} m</b></div><div>海平面趨勢<small>Model trend</small><b>${tideTrend(data.rows,row)}</b></div></div>
+ <p class="caption">包含潮汐及其他海平面變化，基準係平均海平面 MSL，唔係官方潮汐表嘅海圖基準。約 8 km 模型；唔用數值直接推算沙灘離岸流或安全潮位。</p>
+ <div class="detail-grid"><div>潮汐／進出水位<small>Tide & access</small><b>${o?.tide==='checked'?'已核對 Checked':o?.tide==='adverse'?'不利 Adverse':'未確認 Unknown'}</b></div><div>離岸流<small>Rip current</small><b>${o?.rip==='present'?'已見／獲警告 Present':o?.rip==='notseen'?'未見跡象 Not observed':'未確認 Unknown'}</b></div><div>現場破浪<small>Observed breaking height</small><b>${num(o?.breaking)} m</b></div><div>救生員警告<small>Lifeguard warnings</small><b>${o?.warning==='danger'?'禁止入水 Do not enter':o?.warning==='checked'?'已詢問 Checked':'未確認 Unknown'}</b></div></div><p class="caption">${o?'你的現場記錄 Your observation · '+localTime(new Date(o.at)).replace('T',' '):past?'上次記錄已過期或不適用所選時段 · Recheck required':'未確認現場 · No local observations'}。記錄只適用此浪點目前小時，30 分鐘後失效。</p>
+ <div class="links"><a class="btn" href="${tideLink(spot)}" target="_blank" rel="noopener noreferrer">官方潮汐 Tide table</a><a class="btn" href="https://beachsafe.org.au/" target="_blank" rel="noopener noreferrer">巡邏／警告 Beachsafe</a></div>
+ <details><summary>點樣計算？ · Assessment rules</summary><p class="caption">新手風浪條件：浪高 0.3–1.0 m、週期 ≤11 s、風 ≤約22 km/h（向岸風 ≤約17）。浪高 >1.5 m、週期 >13 s 或風 >約33 km/h（向岸風 >約28）列為較高風險。一般模式門檻較寬。現場警告／離岸流優先；未知因素保留為需觀察。這是 App 篩選規則，並非經驗證的安全評估。</p></details><p class="caption">未接入即時離岸流、破浪或封灘資料。以下由你按現場／救生員資訊填寫；「未見」唔代表不存在。</p>
+ ${nowHour&&!data.stale?`<details><summary>更新現場記錄 · Record observations</summary><form id="localForm" class="local-form">
+ <label>潮汐／進出水位 Tide & access<select name="tide">${option('unknown','未確認 Unknown','tide')}${option('checked','已核對潮表及進出水位 Checked','tide')}${option('adverse','潮位不利／通道受阻 Adverse','tide')}</select></label>
+ <label>離岸流 Rip current<select name="rip">${option('unknown','未確認 Unknown','rip')}${option('notseen','未見明顯跡象 Not observed','rip')}${option('present','已見／獲警告離岸流 Present','rip')}</select></label>
+ <label>實際破浪高度 Breaking wave height (m)<input name="breaking" type="number" step="0.1" min="0" max="30" placeholder="未量度留空 · Unknown" value="${Number.isFinite(o?.breaking)?o.breaking:''}"></label>
+ <label>救生員／封灘警告 Lifeguard warnings<select name="warning">${option('unknown','未確認／無救生員 Unknown','warning')}${option('checked','已向救生員確認無禁止入水警告 Checked','warning')}${option('danger','封灘／紅旗／禁止入水 Do not enter','warning')}</select></label>
+ <button class="btn" type="submit">保存並重新評估 Save & assess</button><button class="btn" type="button" id="clearLocal">清除 Clear</button></form></details>`:'<p class="caption">未來時段／離線資料不能沿用目前觀察。Future and cached forecasts require fresh checks.</p>'}
+ </section>`;
+}
+function bindObservations(data,spot){
+ const form=$('localForm');if(!form)return;
+ form.onsubmit=e=>{e.preventDefault();const f=new FormData(form),raw=f.get('breaking');write('observation:'+spot.id,{at:Date.now(),tide:f.get('tide'),rip:f.get('rip'),warning:f.get('warning'),breaking:raw===''?null:Number(raw)});renderForecast(data,spot);bindObservations(data,spot);};
+ $('clearLocal').onclick=()=>{write('observation:'+spot.id,null);renderForecast(data,spot);bindObservations(data,spot);};
 }
 async function request(url) {
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
@@ -49,19 +93,19 @@ async function request(url) {
 async function getForecast(spot,force=false) {
  const candidate=memory.get(spot.id)||read('forecast:'+spot.id,null);
  const saved=candidate?.rows?.length?candidate:null;
- if(!force && saved && !saved.stale && Date.now()-saved.at<15*60e3) {memory.set(spot.id,saved);return {...saved,stale:!navigator.onLine};}
+ if(!force && saved && saved.schema===2 && !saved.stale && Date.now()-saved.at<15*60e3) {memory.set(spot.id,saved);return {...saved,stale:!navigator.onLine};}
  if(pending.has(spot.id)) return pending.get(spot.id);
  const task=(async()=>{
  try {
  const base={latitude:spot.lat,longitude:spot.lon,timezone:TZ,forecast_days:10};
  const marine=new URL('https://marine-api.open-meteo.com/v1/marine');
- marine.search=new URLSearchParams({...base,hourly:'wave_height,wave_period,wave_direction,wind_wave_height,swell_wave_height,sea_surface_temperature'});
+ marine.search=new URLSearchParams({...base,hourly:'wave_height,wave_period,wave_direction,wind_wave_height,swell_wave_height,sea_surface_temperature,sea_level_height_msl,swell_wave_period,swell_wave_direction'});
  const weather=new URL('https://api.open-meteo.com/v1/forecast');
  weather.search=new URLSearchParams({...base,hourly:'wind_speed_10m,wind_direction_10m,temperature_2m,apparent_temperature,is_day',wind_speed_unit:'kmh'});
  const [m,w]=await Promise.all([request(marine),request(weather)]);
  const wi=new Map(w.hourly.time.map((t,i)=>[t,i]));
  const rows=m.hourly.time.map((time,i)=>{const row={time};for(const [k,v] of Object.entries(m.hourly))if(k!=='time')row[k]=v[i];const j=wi.get(time);for(const [k,v]of Object.entries(w.hourly))if(k!=='time')row[k]=j===undefined?null:v[j];return row;});
- const data={rows,at:Date.now()};memory.set(spot.id,data);write('forecast:'+spot.id,data);return data;
+ const data={rows,at:Date.now(),schema:2};memory.set(spot.id,data);write('forecast:'+spot.id,data);return data;
  }catch(error){if(saved)return {...saved,stale:true};throw error;}
  })();pending.set(spot.id,task);try{return await task;}finally{pending.delete(spot.id);}
 }
@@ -71,7 +115,7 @@ function bestWindow(rows,spot) {
  for(let i=0;i<rows.length-1;i++) {const a=rows[i],b=rows[i+1];
  // UTC here measures spacing between local labels, independent of device timezone.
  if(a.time<now || a.is_day!==1 || b.is_day!==1 || Date.parse(b.time+'Z')-Date.parse(a.time+'Z')!==3600000)continue;
- if(verdict(a,spot).level!=='ok'||verdict(b,spot).level!=='ok')continue;
+ if(modelVerdict(a,spot).level!=='ok'||modelVerdict(b,spot).level!=='ok')continue;
  candidates.push({a,b,wind:Math.max(a.wind_speed_10m,b.wind_speed_10m)});
  }return candidates.sort((a,b)=>a.wind-b.wind)[0];
 }
@@ -83,15 +127,17 @@ function renderForecast(data,spot) {
  $('daySelect').innerHTML=days.map(d=>`<option ${d===state.day?'selected':''}>${d}</option>`).join('');
  const day=state.mode==='today'?today:state.day,dayRows=data.rows.filter(r=>r.time.startsWith(day));
  const row=day===today?current(dayRows):dayRows.find(r=>r.time.endsWith('T12:00'))||dayRows[0],v=verdict(row,spot),r=row||{};
- const best=data.stale?null:bestWindow(dayRows,spot);
+ const currentAssessment=verdict(current(data.rows),spot);
+ const best=data.stale||currentAssessment.level==='bad'||observation(spot,current(data.rows))?.tide==='adverse'?null:bestWindow(dayRows,spot);
  const hourly=day===today?dayRows.filter(r=>r.time>=localTime().slice(0,13)+':00'):dayRows;
  const rowHtml=x=>{const v=verdict(x,spot);return `<div class="hour-row"><b>${x.time.slice(11)}<small>${x.is_day===0?'夜間 Night':''}</small></b><span>${icon('wave')}${num(x.wave_height)} m</span><span>${icon('wind')}${num(x.wind_speed_10m,0)}<small>km/h</small></span><span class="tag ${v.level}">${v.level==='ok'?'較溫和 Milder':v.level==='bad'?'較高風險 Caution':'需觀察 Check'}</span></div>`;};
  $('forecastContent').innerHTML=`
  <section class="hero"><div class="hero-top"><span class="caption">${esc(day)} · ${r.time?esc(r.time.slice(11)):'無資料'} ${day===today?'目前 Current':'預報 Forecast'}</span><span class="tag">${state.beginner?'新手模式 Beginner':'一般模式 Standard'}</span></div><h1>${v.zh}</h1><div class="status-en">${v.en}</div><p>${v.reason}</p></section>
- <section class="panel best">${icon('sun')}<div><div>${day===today?'今日較佳時段':'較佳時段'} <small>Best window</small></div><strong>${best?`${best.a.time.slice(11)}–${best.b.time.slice(11)}`:'暫未有合適時段'}</strong><div class="caption">${best?'日照時段內，連續預報較溫和 · Daylight only':data.stale?'舊資料不提供時段推薦 · Cached forecast':'只比較未過時嘅日照時段 · Daylight only'}</div></div></section>
+ <section class="panel best">${icon('sun')}<div><div>模型候選時段 <small>Potential window</small></div><strong>${best?`${best.a.time.slice(11)}–${best.b.time.slice(11)}`:'暫未有合適時段'}</strong><div class="caption">${best?'僅風浪模型較溫和；現場因素未確認 · Local checks required':data.stale?'舊資料不提供時段推薦 · Cached forecast':'只比較未過時嘅日照時段 · Daylight only'}</div></div></section>
  <section class="metrics">${metric('浪高','Wave height',num(r.wave_height),'m','模型有效波高 · Model waves','wave')}${metric('風力','Wind speed',num(r.wind_speed_10m,0),'km/h',relation(r.wind_direction_10m,spot.beachFacingDeg),'wind')}${metric('浪週期','Wave period',num(r.wave_period,0),'秒 s',r.wave_period>=12?'長週期 · Long period':'兩個浪峰間距 · Wave interval','wave')}${metric('水溫','Water temperature',num(r.sea_surface_temperature,0),'°C',Number.isFinite(r.sea_surface_temperature)?'留意保暖 · Wetsuit advised':'暫無水溫資料 · Unavailable','temp')}</section>
+ ${assessmentPanel(data,spot,row)}
  <section class="panel hours"><h2>逐小時浪況 <small>Hourly forecast</small></h2>${hourly.length?hourly.slice(0,4).map(rowHtml).join(''):'今日未有可顯示時段'}${hourly.length>4?`<details><summary>展開其餘 ${hourly.length-4} 小時 · More hours</summary>${hourly.slice(4).map(rowHtml).join('')}</details>`:''}</section>
- <details class="panel"><summary>更多天氣資料 · Weather details</summary><div class="detail-grid">${[['氣溫','Air temperature',r.temperature_2m,'°C'],['體感溫度','Feels like',r.apparent_temperature,'°C'],['湧浪','Swell height',r.swell_wave_height,'m'],['風浪','Wind wave height',r.wind_wave_height,'m'],['浪向','Wave direction',r.wave_direction,'°'],['風向','Wind direction',r.wind_direction_10m,'°']].map(([zh,en,val,u])=>`<div>${zh}<small>${en}</small><b>${num(val,u==='m'?1:0)} ${u}</b></div>`).join('')}</div></details>
+ <details class="panel"><summary>更多天氣資料 · Weather details</summary><div class="detail-grid">${[['氣溫','Air temperature',r.temperature_2m,'°C'],['體感溫度','Feels like',r.apparent_temperature,'°C'],['湧浪','Swell height',r.swell_wave_height,'m'],['風浪','Wind wave height',r.wind_wave_height,'m'],['湧浪週期','Swell period',r.swell_wave_period,'s'],['湧浪方向','Swell direction',r.swell_wave_direction,'°'],['浪向','Wave direction',r.wave_direction,'°'],['風向','Wind direction',r.wind_direction_10m,'°']].map(([zh,en,val,u])=>`<div>${zh}<small>${en}</small><b>${num(val,u==='m'?1:0)} ${u}</b></div>`).join('')}</div></details>
  <section class="panel"><h2>出發前確認 <small>Before you go</small></h2><p class="caption">${esc(spot.notes||'留意當地風浪、水流及救生員指示。')}</p><div class="links"><a class="btn" href="${tideLink(spot)}" target="_blank" rel="noopener noreferrer">潮汐表 Tide · BoM</a><a class="btn" href="https://auswaves.org/sa-waves/" target="_blank" rel="noopener noreferrer">實測 Observations</a></div>${spot.camUrl?`<a class="btn cam" href="${esc(spot.camUrl)}" target="_blank" rel="noopener noreferrer">${icon('camera')}查看海灘 Cam · Webcam</a>`:'<p class="caption">此浪點未有 Cam · No webcam available</p>'}</section><p class="disclaimer">模型預報，落水前確認現場 · Check local conditions</p>`;
  $('updatedAt').textContent=`${data.stale?'離線／舊資料 Cached':'已更新 Updated'} · ${localTime(new Date(data.at)).replace('T',' ')} · 南澳`;
  $('updatedAt').classList.toggle('offline',!!data.stale);$('notice').hidden=!data.stale;
@@ -101,7 +147,7 @@ async function showForecast(force=false) {
  const token=++renderToken,spot=state.spots.find(s=>s.id===state.spot);if(!spot)return;
  $('dayRow').hidden=state.mode!=='next10';$('favorite').innerHTML=icon('heart');$('favorite').setAttribute('aria-pressed',String(state.favorites.includes(spot.id)));
  $('forecastContent').innerHTML='<div class="loading">正在載入浪況…<br><small>Loading forecast</small></div>';$('notice').hidden=true;
- try{const data=await getForecast(spot,force);if(token!==renderToken||state.view!=='forecast')return;renderForecast(data,spot);}
+ try{const data=await getForecast(spot,force);if(token!==renderToken||state.view!=='forecast')return;renderForecast(data,spot);bindObservations(data,spot);}
  catch(error){if(token!==renderToken)return;$('forecastContent').innerHTML=`<div class="panel error"><h2>暫時未能載入</h2><p class="caption">${esc(error.message)} · 請稍後再試。</p><button class="btn" id="retry">重新載入 Retry</button></div>`;$('updatedAt').textContent='資料未更新 · Update unavailable';$('retry').onclick=()=>showForecast(true);}
 }
 function distance(a,b){const r=Math.PI/180,x=(b.lon-a.lon)*r*Math.cos((a.lat+b.lat)*r/2),y=(b.lat-a.lat)*r;return 6371*Math.hypot(x,y);}
@@ -138,3 +184,5 @@ document.querySelector('.brand').onclick=e=>{e.preventDefault();switchView('fore
 async function init(){try{const r=await fetch('./spots.json');if(!r.ok)throw new Error('浪點資料未能載入');state.spots=await r.json();if(!state.spots.some(s=>s.id===state.spot))state.spot=state.spots[0].id;$('spotSelect').innerHTML=state.spots.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');$('spotSelect').value=state.spot;await showForecast();}catch(e){$('forecastContent').innerHTML=`<div class="panel error">${esc(e.message)}<p>請重新整理頁面 · Please reload</p></div>`;}}
 if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(()=>{});let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!reloading){reloading=true;location.reload();}});}
 init();
+
+setInterval(()=>{if(document.visibilityState==='visible'&&state.view==='forecast'){const spot=state.spots.find(s=>s.id===state.spot),data=spot&&memory.get(spot.id);if(data?.rows?.length&&!$('localForm')?.contains(document.activeElement))showForecast();}},60000);
